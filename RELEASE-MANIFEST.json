@@ -71,13 +71,13 @@
   },
   {
     "path": "README.md",
-    "sha256": "5a5351f292147a019de058826fe6e2227ecb69a4408206fc8803fb6f242a3307",
-    "bytes": 8447
+    "sha256": "71f53926c48b18755882cf051e54a66e69a1f07dbd40e3f13b4d9eecf9e133ad",
+    "bytes": 8449
   },
   {
     "path": "RELEASE-CHECKLIST.md",
-    "sha256": "671b7680a6ffe87aa5701046f59ccf365173bb6e8d316a95a08b797100d59626",
-    "bytes": 1160
+    "sha256": "769f13344f449febcf0755d6f1608517bd9f7b117e40d65a82a32c3ec8169526",
+    "bytes": 1202
   },
   {
     "path": "requirements.txt",
