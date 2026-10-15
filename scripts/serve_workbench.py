@@ -7,6 +7,7 @@ from pathlib import Path
 from dashboard_data import batches, dataset
 from review_store import ReviewStore
 from collection_controller import Controller
+from manual_import import preview,import_files
 import subprocess
 import os
 import sys
@@ -35,9 +36,9 @@ class Handler(BaseHTTPRequestHandler):
             elif route.path == '/api/dataset':
                 batch = parse_qs(route.query).get('batch', [''])[0]
                 self.reply(json.dumps(dataset(batch), ensure_ascii=False, allow_nan=False).encode(), 'application/json; charset=utf-8')
-            elif route.path in ('/', '/app.js', '/style.css','/enhancements.js','/calculator.js'):
-                filename = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css','/enhancements.js':'enhancements.js','/calculator.js':'calculator.js'}[route.path]
-                mime = {'/': 'text/html; charset=utf-8', '/app.js': 'text/javascript; charset=utf-8', '/style.css': 'text/css; charset=utf-8','/enhancements.js':'text/javascript; charset=utf-8','/calculator.js':'text/javascript; charset=utf-8'}[route.path]
+            elif route.path in ('/', '/app.js', '/style.css','/enhancements.js','/calculator.js','/manual-import.js'):
+                filename = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css','/enhancements.js':'enhancements.js','/calculator.js':'calculator.js','/manual-import.js':'manual-import.js'}[route.path]
+                mime = {'/': 'text/html; charset=utf-8', '/app.js': 'text/javascript; charset=utf-8', '/style.css': 'text/css; charset=utf-8','/enhancements.js':'text/javascript; charset=utf-8','/calculator.js':'text/javascript; charset=utf-8','/manual-import.js':'text/javascript; charset=utf-8'}[route.path]
                 self.reply((WEB / filename).read_bytes(), mime)
             else:
                 self.send_error(404)
@@ -49,10 +50,16 @@ class Handler(BaseHTTPRequestHandler):
         if host not in (f'127.0.0.1:{self.server.server_port}',f'localhost:{self.server.server_port}') or self.headers.get('Origin')!='http://'+host:
             self.send_error(403);return
         try:
+            route=urlparse(self.path).path
             length=int(self.headers.get('Content-Length','0'))
-            if not 0<length<=100000 or self.headers.get('Content-Type','').split(';')[0]!='application/json':raise ValueError('请求类型或大小无效')
+            limit=32*1024*1024 if route.startswith('/api/import/') else 100000
+            if not 0<length<=limit or self.headers.get('Content-Type','').split(';')[0]!='application/json':raise ValueError('请求类型或大小无效')
             body=json.loads(self.rfile.read(length));route=urlparse(self.path).path
-            if route=='/api/reviews':result=REVIEWS.save(body)
+            if route in ('/api/import/preview','/api/import/confirm'):
+                with COLLECTION.lock:
+                    if COLLECTION.process and COLLECTION.process.poll() is None:raise ValueError('采集中不能导入')
+                    result=preview(body) if route.endswith('preview') else import_files(body)
+            elif route=='/api/reviews':result=REVIEWS.save(body)
             elif route=='/api/collection/start':result=COLLECTION.start(body['shop'],body['start'],body['end'])
             elif route=='/api/collection/command':result=COLLECTION.command(body['action'])
             elif route=='/api/collection/pause':result=COLLECTION.request_pause()

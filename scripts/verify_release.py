@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     entries = json.loads((ROOT / 'RELEASE-MANIFEST.json').read_text(encoding='utf-8'))
-    required={'requirements.txt','install.ps1','start-workbench.cmd','start-workbench.ps1','create-desktop-shortcut.ps1',
+    required={'scripts/process_lock.py','scripts/manual_import.py','web/manual-import.js','requirements.txt','install.ps1','start-workbench.cmd','start-workbench.ps1','create-desktop-shortcut.ps1',
               'web/index.html','web/app.js','web/enhancements.js','web/calculator.js','web/style.css',
               'scripts/browser_session.py','scripts/collect_reports.py','scripts/collection_state.py','scripts/collection_controller.py',
               'scripts/dashboard_data.py','scripts/launch_browser.py','scripts/metrics_catalog.py','scripts/report_validation.py',

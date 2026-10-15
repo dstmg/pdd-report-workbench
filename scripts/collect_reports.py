@@ -238,6 +238,7 @@ async def run(args):
     from playwright.async_api import async_playwright
     start, end = dates(args.start, args.end)
     with BrowserLock(ROOT), Journal(ROOT, args.shop, start, end) as journal:
+        if journal.data.get('source')=='manual':raise ValueError('人工导入周期请继续人工补齐，不混合自动任务')
         async with async_playwright() as playwright:
             profile = Path(os.environ['LOCALAPPDATA']) / 'PddReportDownloader' / 'browser-profile-chrome'
             if args.attach:
@@ -283,6 +284,7 @@ async def run(args):
                 await guard(page, journal)
                 journal.data['state'] = 'running'
                 journal.save()
+                if journal.data.get('source')=='manual':raise ValueError('人工导入周期请继续人工补齐，不混合自动任务')
                 daily = await collect(page, journal, '分天数据', args)
                 summary = await collect(page, journal, '汇总数据', args)
                 journal.data.update(state='complete', reconciliation=reconcile(daily, summary))

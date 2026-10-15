@@ -7,3 +7,5 @@ body.calculator-view .toolbar,body.calculator-view #coverage,body.calculator-vie
 .readable-trend-scroll{overflow-x:auto;max-width:100%;border-bottom:1px solid #e4e4e7}.readable-trend-scroll svg{display:block;height:310px;font-family:Arial,"Microsoft YaHei",sans-serif}
 #sku-table{table-layout:fixed;min-width:1490px;width:100%}#sku-table th,#sku-table td{text-align:center;padding:12px 10px;vertical-align:middle}#sku-table th:first-child,#sku-table td:first-child{text-align:left;width:185px}#sku-table th:last-child,#sku-table td:last-child{width:65px}#sku-table input[type=number]{display:block;width:100%;max-width:100px;margin:0 auto;text-align:center;box-sizing:border-box}#sku-table input[type=text]{width:100%;box-sizing:border-box}
 #sku-input-error{color:#b91c1c}.sku-invalid #sku-totals,.sku-invalid [data-result]{visibility:hidden}#calculator input:invalid{border-color:#b91c1c}
+
+.manual-confirm{display:flex;align-items:flex-start;gap:8px}.manual-confirm input{width:auto;flex:none;margin-top:3px}

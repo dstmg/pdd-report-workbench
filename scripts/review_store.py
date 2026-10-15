@@ -23,6 +23,7 @@ def aggregate(rows,fields,official=None):
 def snapshot(request):
     data=dataset(request['batch'])
     if data['demo']:raise ValueError('模拟数据不能写入真实店铺复盘')
+    if data.get('partial') or data.get('reconciled') is False:raise ValueError('缺少完整分天与汇总对账，不写入正式复盘')
     start,end=request['start'],request['end']
     date.fromisoformat(start);date.fromisoformat(end)
     if not data['start']<=start<=end<=data['end']:raise ValueError('证据日期超出报表范围')

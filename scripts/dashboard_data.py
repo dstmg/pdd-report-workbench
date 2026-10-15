@@ -76,11 +76,12 @@ def dataset(batch_id):
     if not directory.is_relative_to(base) or directory == base:
         raise ValueError('无效批次路径')
     journal = json.loads((directory / 'collection.json').read_text(encoding='utf-8'))
-    if journal['state'] != 'complete':
+    if journal['state'] not in ('complete','partial'):
         raise ValueError('该批次尚未完成校验')
     sources, checked = [], {}
     for mode in ('分天数据', '汇总数据'):
-        task = journal['tasks'][f'商品推广_{mode}']
+        task = journal['tasks'].get(f'商品推广_{mode}')
+        if not task:continue
         path = (directory / task['file']).resolve()
         if path.parent != directory or task['state'] != 'validated':
             raise ValueError('报表路径或任务状态无效')
@@ -91,11 +92,16 @@ def dataset(batch_id):
         sources.append({'mode': mode, 'file': path.name, 'bytes': path.stat().st_size,
             'sha256': result['sha256'], 'sheets': [{'name': s['name'], 'rows': s['data_rows'], 'empty': s['empty']}
                 for s in result['sheets']]})
-    checks = reconcile(checked['分天数据'], checked['汇总数据'])
+    checks = reconcile(checked['分天数据'], checked['汇总数据']) if len(checked)==2 else {'state':'missing_report','checks':[]}
+    if not checked:raise ValueError('没有已校验报表')
+    partial=len(checked)<2
+    if '分天数据' not in checked:
+        task=journal['tasks']['商品推广_汇总数据'];raw=raw_report(directory/task['file'])
+        return {'id':batch_id,'shop':journal['shop'],'start':journal['start'],'end':journal['end'],'category':'商品推广','demo':False,'partial':True,'hasDaily':False,'reconciled':False,'checks':0,'daily':[],'products':[],'sources':sources,'notes':['仅有汇总文件：可查看原始工作表；缺分天数据，不能展示日趋势或进行交叉对账'],'metricFields':catalog(next(s['fields'] for s in raw if s['name'].startswith('商品_'))),'officialProducts':[],'officialOverview':{},'rawReports':[{'mode':'汇总数据','sheets':raw}]}
     daily_file = directory / journal['tasks']['商品推广_分天数据']['file']
     tables = records(daily_file)
     raw_daily=raw_report(daily_file)
-    raw_summary=raw_report(directory / journal['tasks']['商品推广_汇总数据']['file'])
+    raw_summary=raw_report(directory / journal['tasks']['商品推广_汇总数据']['file']) if not partial else []
     definitions=catalog(next(s['fields'] for s in raw_daily if s['name'].startswith('商品_')))
     daily = [{'date': row['日期'], **mapped(row,definitions)} for row in tables['汇总数据']]
     products = []
@@ -104,7 +110,7 @@ def dataset(batch_id):
             'scene': str(row.get('推广场景') or ''), 'promotion': str(row.get('推广名称') or ''),
             'bid': str(row.get('出价方式') or ''), 'group': str(row.get('分组') or ''),
             'deleted': str(row.get('是否已删除') or ''), **mapped(row,definitions)})
-    product_totals=records(directory / journal['tasks']['商品推广_汇总数据']['file'])['商品']
+    product_totals=records(directory / journal['tasks']['商品推广_汇总数据']['file'])['商品'] if not partial else []
     official=[{'id':str(row['商品ID']), 'scene':str(row.get('推广场景') or ''),
         'promotion':str(row.get('推广名称') or ''),'bid':str(row.get('出价方式') or ''),
         'group':str(row.get('分组') or ''),**mapped(row,definitions)} for row in product_totals]
@@ -115,5 +121,5 @@ def dataset(batch_id):
         'daily': daily, 'products': products, 'sources': sources, 'notes': notes,
         'metricFields':definitions,'officialProducts':official,'officialOverview':mapped(total_row,definitions),
         'rawReports':[{'mode':'分天数据','sheets':raw_daily},{'mode':'汇总数据','sheets':raw_summary}],
-        'category':'商品推广','demo':False,
+        'category':'商品推广','demo':False,'partial':partial,'hasDaily':True,
         'reconciled': checks['state'] == 'matched', 'checks': len(checks['checks'])}

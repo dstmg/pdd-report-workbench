@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 from report_validation import validate
+from process_lock import ProcessLock
 
 
 class BrowserLock:
@@ -16,17 +17,8 @@ class BrowserLock:
         self.fd = None
 
     def __enter__(self):
-        try:
-            self.fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError as exc:
-            raise RuntimeError('专用浏览器已有采集锁；核对进程后处理，不并发操作或自动清锁') from exc
-        os.write(self.fd, str(os.getpid()).encode())
-        return self
-
-    def __exit__(self, *args):
-        if self.fd is not None:
-            os.close(self.fd)
-            self.path.unlink()
+        self.guard=ProcessLock(self.path);self.guard.__enter__();return self
+    def __exit__(self,*args):self.guard.__exit__(*args)
 
 
 class Journal:
@@ -46,27 +38,16 @@ class Journal:
             self.data = {'shop': shop, 'start': start, 'end': end, 'state': 'pending', 'tasks': {}}
 
     def __enter__(self):
+        self.guard=ProcessLock(self.lock);self.guard.__enter__()
         try:
-            self.fd = os.open(self.lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError as exc:
-            raise RuntimeError('任务锁存在；请核对是否仍在运行，不自动删除锁') from exc
-        os.write(self.fd, str(os.getpid()).encode())
-        # Re-read after acquiring the task lock to avoid stale constructor data.
-        if self.path.exists():
-            try:
+            if self.path.exists():
                 latest=json.loads(self.path.read_text(encoding='utf-8'))
-                if (latest['shop'],latest['start'],latest['end'])!=(self.shop,self.start,self.end):
-                    raise ValueError('任务身份不一致')
+                if (latest['shop'],latest['start'],latest['end'])!=(self.shop,self.start,self.end):raise ValueError('任务身份不一致')
                 self.data=latest
-            except Exception:
-                os.close(self.fd);self.fd=None;self.lock.unlink()
-                raise
-        return self
-
-    def __exit__(self, *args):
-        if self.fd is not None:
-            os.close(self.fd)
-            self.lock.unlink()
+            return self
+        except Exception:
+            self.guard.__exit__(None,None,None);raise
+    def __exit__(self,*args):self.guard.__exit__(*args)
 
     def save(self):
         temporary = self.path.with_suffix('.tmp')

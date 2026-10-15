@@ -6,7 +6,7 @@ import sys
 import threading
 from pathlib import Path
 from browser_session import dates
-from collection_state import Journal
+from collection_state import Journal, BrowserLock
 from launch_browser import owned
 
 
@@ -36,10 +36,11 @@ class Controller:
         start,end=dates(start,end)
         with self.lock:
             if self.process and self.process.poll() is None:raise ValueError('已有页面采集正在运行')
-            if (self.root/'data/browser-collection.lock').exists():raise ValueError('存在其他采集进程或未核验的采集锁')
+            with BrowserLock(self.root):pass
             record=json.loads((self.root/'data/browser-launch.json').read_text(encoding='utf-8'))
             if not owned(record):raise ValueError('请先打开专用Chrome并人工登录')
             self.journal=Journal(self.root,shop,start,end)
+            if self.journal.data.get('source')=='manual':raise ValueError('该周期为人工导入，请继续人工补齐，不混合自动任务')
             # Keep startup state in memory; only the collector owning BrowserLock
             # may mutate the journal. Do not overwrite another process's progress.
             self.original_stamp=self.journal.path.stat().st_mtime_ns if self.journal.path.exists() else None
